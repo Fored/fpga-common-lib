@@ -49,6 +49,7 @@ architecture behavioral of bscan_to_stream is
   signal fifo_read_rd_en,  fifo_read_empty  : std_logic;
   signal fifo_write_din,   fifo_write_dout  : std_logic_vector(33 downto 0);
   signal fifo_write_wr_en, fifo_write_empty : std_logic;
+  signal fifo_write_valid                   : std_logic;
   signal fifo_enable                        : std_logic := '0';
   signal tck_d,            tck_d2           : std_logic;
   signal drck_d,           drck_d2          : std_logic;
@@ -92,11 +93,12 @@ begin
       rd_en  => '1',
       dout   => fifo_write_dout,
       full   => open,
-      empty  => fifo_write_empty
+      empty  => fifo_write_empty,
+      valid  => fifo_write_valid
     );
 
   DataOut.message_start <= fifo_write_dout(fifo_write_dout'high);
-  DataOut.data_valid    <= not fifo_write_empty;
+  DataOut.data_valid    <= fifo_write_valid;
   DataOut.data          <= fifo_write_dout(31 downto 0);
 
   inst_fifo_bscan_read: entity work.fifo_bscan
@@ -109,7 +111,8 @@ begin
       rd_en  => fifo_read_rd_en,
       dout   => fifo_read_dout,
       full   => open,
-      empty  => fifo_read_empty
+      empty  => fifo_read_empty,
+      valid  => open
     );
 
   process (Clk_100) is

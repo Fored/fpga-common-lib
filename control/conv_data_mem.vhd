@@ -170,17 +170,21 @@ begin
   process (Clk) is
   begin
     if rising_edge(Clk) then
-      if (Reset = '1' or DataLiteIn.message_start = '1') then
+      if (Reset = '1') then
         sel_fifo_a_d <= '0';
       else
-        if (fifo_a_rdreq = '1' or fifo_d_rdreq = '1') then
-          if (fifo_a_data_out(fifo_a_data_out'high) = '1' and fifo_a_rdreq = '1') then
-            sel_fifo_a_d <= '1';
-          else
-            sel_fifo_a_d <= not sel_fifo_a_d;
-          end if;
+        if (DataLiteIn.data_valid = '1' and read_ready_out = '1' and DataLiteIn.message_start = '1') then
+          sel_fifo_a_d <= '0';
         else
-          sel_fifo_a_d <= sel_fifo_a_d;
+          if (fifo_a_rdreq = '1' or fifo_d_rdreq = '1') then
+            if (fifo_a_data_out(fifo_a_data_out'high) = '1' and fifo_a_rdreq = '1') then
+              sel_fifo_a_d <= '1';
+            else
+              sel_fifo_a_d <= not sel_fifo_a_d;
+            end if;
+          else
+            sel_fifo_a_d <= sel_fifo_a_d;
+          end if;
         end if;
       end if;
     end if;

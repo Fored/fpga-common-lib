@@ -42,7 +42,8 @@ architecture arch of m_mem_reg is
 
 begin
 
-  RegArray <= settings;
+  RegArray        <= settings;
+  MemOut.read_req <= '1';
 
   read_proc: process (Clk) is
   begin

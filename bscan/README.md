@@ -29,3 +29,17 @@ xilinx_xvc host=127.0.0.1:2542 disableversioncheck=true
 ### IDCODE
 
 Для взаимодействия с FPGA необходимо знать его IDCODE. Для FPGA в ячейке 233 можно узнать [тут](https://bsdl.info/details.htm?sid=156d619780a9b25688ca59b002289d77)
+
+### Проверка
+
+Из каталога `bscan/py`:
+
+```bash
+python -m unittest discover -v
+```
+
+Проверка линтером из корня `fpga-common-lib`:
+
+```bash
+ruff check bscan/py
+```

@@ -7,15 +7,18 @@ class JtagStreamHalfDuplex:
     Любая операция записи проверяет, не пришли ли встречные данные.
     """
 
-    def __init__(self, jtag, data_width):
+    DATA_WIDTH = 32
+    DATA_MASK = (1 << DATA_WIDTH) - 1
+    SCAN_WIDTH = DATA_WIDTH + 2
+
+    def __init__(self, jtag):
         self.j = jtag
         self.rx_buffer = []
-        self.data_width = data_width
 
     def _decode_tdo(self, tdo: int):
-        valid = bool((tdo >> self.data_width) & 1)
-        msg_start = bool((tdo >> (self.data_width + 1)) & 1)
-        data = tdo & 0xFFFFFFFF
+        valid = bool((tdo >> self.DATA_WIDTH) & 1)
+        msg_start = bool((tdo >> (self.DATA_WIDTH + 1)) & 1)
+        data = tdo & self.DATA_MASK
         return valid, msg_start, data
 
     def _handle_tdo(self, tdo: int):
@@ -29,8 +32,12 @@ class JtagStreamHalfDuplex:
     # ---------- передача ----------
     def send_word(self, data: int, message_start=False):
         logging.debug(f"Sending word: 0x{data:08X}, message_start: {message_start}")
-        word = ((1 if message_start else 0) << (self.data_width + 1)) | (1 << self.data_width) | (data & 0xFFFFFFFF)
-        tdo = self.j.dr_scan(word, self.data_width + 2)
+        word = (
+            ((1 if message_start else 0) << (self.DATA_WIDTH + 1))
+            | (1 << self.DATA_WIDTH)
+            | (data & self.DATA_MASK)
+        )
+        tdo = self.j.dr_scan(word, self.SCAN_WIDTH)
         self._handle_tdo(tdo)
 
     def send_words(self, data_list, start_flag=True):
@@ -47,7 +54,7 @@ class JtagStreamHalfDuplex:
     def poll(self, num=1):
         """Считать несколько слов без записи (poll FIFO на стороне ПЛИС)."""
         for _ in range(num):
-            tdo = self.j.dr_scan(0, self.data_width + 2)
+            tdo = self.j.dr_scan(0, self.SCAN_WIDTH)
             if not self._handle_tdo(tdo):
                 return False
         return True

@@ -1,6 +1,3 @@
-
-import sys
-
 from xvc_client import XvcClient
 
 

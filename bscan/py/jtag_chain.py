@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import logging
-from typing import List, Dict, Optional
+from typing import List
 
 
 @dataclass
@@ -21,7 +21,7 @@ class JtagChain:
     def __init__(self, jtag, devices: List[TapDevice]):
         self.jtag = jtag
         self.devices = devices
-        self.curent_device = None
+        self.current_device = None
 
     # ---------- ВСПОМОГАТЕЛЬНОЕ ----------
     @staticmethod
@@ -34,7 +34,9 @@ class JtagChain:
         Установить инструкции всем устройствам одной общей IR-операцией.
         ir_values[i] — инструкция для devices[i], LSB-first.
         """
-        assert len(ir_values) == len(self.devices)
+        if len(ir_values) != len(self.devices):
+            raise ValueError("IR value count must match device count")
+
         total_ir_bits = sum(d.ir_len for d in self.devices)
         # Первые биты, вошедшие через TDI, доходят до ближайшего к TDO TAP.
         tdi_bits: List[int] = []
@@ -45,7 +47,7 @@ class JtagChain:
         self.jtag.goto_shift_ir()
         # Последний бит всей цепочки должен выйти в Exit1-IR → TMS для последнего бита = 1
         tms = [0] * (total_ir_bits - 1) + [1]
-        tdo = self.jtag.xc.shift(tms, tdi_bits, total_ir_bits)  # сырые байты, не используем
+        self.jtag.xc.shift(tms, tdi_bits, total_ir_bits)
         # Exit1-IR -> Update-IR -> Idle
         self.jtag.xc.shift([1, 0], [0, 0], 2)
 
@@ -58,7 +60,7 @@ class JtagChain:
         """
         irs = [d.ir_bypass for d in self.devices]
         idx = self.index_of(target)
-        self.curent_device = idx
+        self.current_device = idx
         irs[idx] = ir_code
         self.set_ir_all(irs)
 
@@ -68,7 +70,11 @@ class JtagChain:
         Один DR-скан через всю цепочку, где у нецелевых TAP BYPASS=1 бит,
         а у целевого — target_nbits. Вернёт TDO целевого устройства как int.
         """
-        idx = self.curent_device
+        if target_nbits <= 0:
+            raise ValueError("target_nbits must be positive")
+        if self.current_device is None:
+            raise RuntimeError("Target TAP is not selected")
+        idx = self.current_device
 
         # Общая длина DR — сумма по всем: для BYPASS = 1, для target = target_nbits
         total_dr_bits = (len(self.devices) - 1) * 1 + target_nbits

@@ -14,7 +14,8 @@ class TapDevice:
 class JtagChain:
     """
     Управление JTAG-цепочкой из N устройств поверх твоего Jtag.
-    Порядок devices соответствует направлению сдвига: index=0 — ближайшее к TDI, последний — ближайший к TDO.
+    Порядок devices совпадает с iMPACT: index=0 — ближайшее к TDI,
+    последний — ближайший к TDO.
     """
 
     def __init__(self, jtag, devices: List[TapDevice]):
@@ -35,9 +36,9 @@ class JtagChain:
         """
         assert len(ir_values) == len(self.devices)
         total_ir_bits = sum(d.ir_len for d in self.devices)
-        # Конкатенация по порядку TDI->...->TDO
+        # Первые биты, вошедшие через TDI, доходят до ближайшего к TDO TAP.
         tdi_bits: List[int] = []
-        for ir, dev in zip(ir_values, self.devices):
+        for ir, dev in reversed(list(zip(ir_values, self.devices))):
             tdi_bits += self._int_to_bits_lsb(ir, dev.ir_len)
 
         # Сдвиг IR всей цепочки
@@ -72,10 +73,10 @@ class JtagChain:
         # Общая длина DR — сумма по всем: для BYPASS = 1, для target = target_nbits
         total_dr_bits = (len(self.devices) - 1) * 1 + target_nbits
 
-        # Собираем TDI-биты в порядке TDI->...->TDO
+        # Собираем TDI-биты от ближайшего к TDO устройства к ближайшему к TDI.
         # Для нецелевых — 0 (или как нужно), для целевого — tdi_val (LSB-first)
         tdi_bits: List[int] = []
-        for i, _dev in enumerate(self.devices):
+        for i in reversed(range(len(self.devices))):
             if i == idx:
                 tdi_bits += self._int_to_bits_lsb(tdi_val & ((1 << target_nbits) - 1), target_nbits)
             else:
@@ -87,10 +88,9 @@ class JtagChain:
         tdo_bytes = self.jtag.xc.shift(tms, tdi_bits, total_dr_bits)
         self.jtag.xc.shift([1, 0], [0, 0], 2)  # Exit1-DR -> Update-DR -> Idle
 
-        # Теперь нужно вырезать TDO-кусок целевого TAP.
-        # В JTAG LSB-first: первый пришедший бит TDO — это LSB TAP[0], затем TAP[1], ...
-        # Значит, смещение целевого = сумма DR-длин всех устройств ДО него.
-        offset = idx * 1  # каждый предыдущий в BYPASS даёт 1 бит
+        # Первыми из TDO выходят данные ближайшего к TDO устройства.
+        # Каждый нецелевой TAP после целевого в devices даёт один BYPASS-бит.
+        offset = len(self.devices) - idx - 1
         # Собираем target_nbits из tdo_bytes, начиная с offset
         val = 0
         for k in range(target_nbits):

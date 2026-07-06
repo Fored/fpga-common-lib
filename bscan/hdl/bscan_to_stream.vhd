@@ -16,6 +16,13 @@ end entity bscan_to_stream;
 
 architecture behavioral of bscan_to_stream is
 
+  constant REQUEST_SIGNATURE  : std_logic_vector(15 downto 0) := x"B5CA";
+  constant RESPONSE_SIGNATURE : std_logic_vector(15 downto 0) := x"CA5B";
+  constant FRAME_WIDTH        : positive := 50;
+  constant SIGNATURE_LSB      : natural := 34;
+  constant MESSAGE_BIT        : natural := 33;
+  constant VALID_BIT          : natural := 32;
+
   component bscan_virtex6 is
     generic (
       JTAG_CHAIN : integer := 1
@@ -44,13 +51,13 @@ architecture behavioral of bscan_to_stream is
   signal update : std_logic;
   signal tdo_i  : std_logic;
 
-  signal dr                                 : std_logic_vector(33 downto 0);
+  signal dr                                 : std_logic_vector(FRAME_WIDTH - 1 downto 0);
   signal fifo_read_dout                     : std_logic_vector(33 downto 0);
   signal fifo_read_rd_en,  fifo_read_empty  : std_logic;
   signal fifo_write_din,   fifo_write_dout  : std_logic_vector(33 downto 0);
   signal fifo_write_wr_en, fifo_write_empty : std_logic;
   signal fifo_write_valid                   : std_logic;
-  signal fifo_enable                        : std_logic := '0';
+  signal captured_read_valid                : std_logic := '0';
   signal tck_d,            tck_d2           : std_logic;
   signal drck_d,           drck_d2          : std_logic;
   signal drck_d3                            : std_logic;
@@ -138,20 +145,18 @@ begin
     if rising_edge(Clk_100) then
       if (sel_100 = '1') then
         if (cap_100 = '1' and drck_100 = '1') then
-          dr(dr'high)     <= fifo_read_dout(dr'high);
-          dr(dr'high - 1) <= not fifo_read_empty;
-          dr(31 downto 0) <= fifo_read_dout(31 downto 0);
-          fifo_read_rd_en <= '1';
+          dr(dr'high downto SIGNATURE_LSB) <= RESPONSE_SIGNATURE;
+          dr(MESSAGE_BIT)                  <= fifo_read_dout(MESSAGE_BIT);
+          dr(VALID_BIT)                    <= not fifo_read_empty;
+          dr(31 downto 0)                  <= fifo_read_dout(31 downto 0);
+          captured_read_valid              <= not fifo_read_empty;
         elsif (shift_100 = '1' and drck_100 = '1') then
-          dr              <= tdi_100 & dr(dr'high downto 1);
-          fifo_read_rd_en <= '0';
+          dr <= tdi_100 & dr(dr'high downto 1);
         else
-          dr              <= dr;
-          fifo_read_rd_en <= '0';
+          dr <= dr;
         end if;
       else
-        dr              <= dr;
-        fifo_read_rd_en <= '0';
+        dr <= dr;
       end if;
     end if;
   end process;
@@ -159,14 +164,14 @@ begin
   process (Clk_100) is
   begin
     if rising_edge(Clk_100) then
-      if (sel_100 = '1' and update_100 = '1' and tck_100 = '1') then
-        if (dr(31 downto 0) = x"DEADBEEF") then
-          fifo_enable <= '1';
-        end if;
-        fifo_write_din   <= dr;
-        fifo_write_wr_en <= dr(dr'high - 1) and fifo_enable;
-      else
-        fifo_write_wr_en <= '0';
+      fifo_write_wr_en <= '0';
+      fifo_read_rd_en  <= '0';
+
+      if (sel_100 = '1' and update_100 = '1' and tck_100 = '1'
+          and dr(dr'high downto SIGNATURE_LSB) = REQUEST_SIGNATURE) then
+        fifo_write_din   <= dr(MESSAGE_BIT downto 0);
+        fifo_write_wr_en <= dr(VALID_BIT);
+        fifo_read_rd_en  <= captured_read_valid;
       end if;
     end if;
   end process;

@@ -9,17 +9,33 @@ class JtagStreamHalfDuplex:
 
     DATA_WIDTH = 32
     DATA_MASK = (1 << DATA_WIDTH) - 1
-    SCAN_WIDTH = DATA_WIDTH + 2
+    REQUEST_SIGNATURE = 0xB5CA
+    RESPONSE_SIGNATURE = 0xCA5B
+    SIGNATURE_WIDTH = 16
+    SIGNATURE_SHIFT = DATA_WIDTH + 2
+    SCAN_WIDTH = SIGNATURE_SHIFT + SIGNATURE_WIDTH
 
     def __init__(self, jtag):
         self.j = jtag
         self.rx_buffer = []
 
     def _decode_tdo(self, tdo: int):
+        signature = (tdo >> self.SIGNATURE_SHIFT) & ((1 << self.SIGNATURE_WIDTH) - 1)
+        if signature != self.RESPONSE_SIGNATURE:
+            raise RuntimeError(f"Invalid BSCAN frame signature: 0x{signature:04X}")
+
         valid = bool((tdo >> self.DATA_WIDTH) & 1)
         msg_start = bool((tdo >> (self.DATA_WIDTH + 1)) & 1)
         data = tdo & self.DATA_MASK
         return valid, msg_start, data
+
+    def _encode_frame(self, data=0, valid=False, message_start=False):
+        return (
+            (self.REQUEST_SIGNATURE << self.SIGNATURE_SHIFT)
+            | ((1 if message_start else 0) << (self.DATA_WIDTH + 1))
+            | ((1 if valid else 0) << self.DATA_WIDTH)
+            | (data & self.DATA_MASK)
+        )
 
     def _handle_tdo(self, tdo: int):
         valid, msg_start, data = self._decode_tdo(tdo)
@@ -32,11 +48,7 @@ class JtagStreamHalfDuplex:
     # ---------- передача ----------
     def send_word(self, data: int, message_start=False):
         logging.debug(f"Sending word: 0x{data:08X}, message_start: {message_start}")
-        word = (
-            ((1 if message_start else 0) << (self.DATA_WIDTH + 1))
-            | (1 << self.DATA_WIDTH)
-            | (data & self.DATA_MASK)
-        )
+        word = self._encode_frame(data, valid=True, message_start=message_start)
         tdo = self.j.dr_scan(word, self.SCAN_WIDTH)
         self._handle_tdo(tdo)
 
@@ -54,7 +66,7 @@ class JtagStreamHalfDuplex:
     def poll(self, num=1):
         """Считать несколько слов без записи (poll FIFO на стороне ПЛИС)."""
         for _ in range(num):
-            tdo = self.j.dr_scan(0, self.SCAN_WIDTH)
+            tdo = self.j.dr_scan(self._encode_frame(), self.SCAN_WIDTH)
             if not self._handle_tdo(tdo):
                 return False
         return True

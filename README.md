@@ -1,6 +1,20 @@
 
 # Linting, code style
 
+## Проверка
+
+Из корня `fpga-common-lib` можно запустить тесты общих Python-библиотек:
+
+```bash
+make test
+```
+
+Полная быстрая проверка с Ruff:
+
+```bash
+make check
+```
+
 ## VHDL
 
 Используй плагин для VSCode:

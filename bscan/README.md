@@ -44,14 +44,14 @@ xilinx_xvc host=127.0.0.1:2542 disableversioncheck=true
 
 ### Проверка
 
-Из каталога `bscan/py`:
+Из корня `fpga-common-lib`:
 
 ```bash
-python -m unittest discover -v
+make test
 ```
 
-Проверка линтером из корня `fpga-common-lib`:
+Или вместе с Ruff:
 
 ```bash
-ruff check bscan/py
+make check
 ```

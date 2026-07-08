@@ -51,9 +51,6 @@ class JtagChain:
         # Exit1-IR -> Update-IR -> Idle
         self.jtag.xc.shift([1, 0], [0, 0], 2)
 
-    def set_ir_bypass_all(self) -> None:
-        self.set_ir_all([d.ir_bypass for d in self.devices])
-
     def set_ir_target(self, target: str, ir_code: int) -> None:
         """
         Всем BYPASS, целевому устройству — ir_code.
@@ -70,8 +67,18 @@ class JtagChain:
         Один DR-скан через всю цепочку, где у нецелевых TAP BYPASS=1 бит,
         а у целевого — target_nbits. Вернёт TDO целевого устройства как int.
         """
+        return self.dr_scan_many([tdi_val], target_nbits)[0]
+
+    def dr_scan_many(self, tdi_values: List[int], target_nbits: int) -> List[int]:
+        """
+        Несколько независимых DR-сканов одной XVC-командой.
+        Каждый элемент всё равно получает свой Update-DR, поэтому bscan_to_stream
+        видит те же кадры, что и при последовательных dr_scan().
+        """
         if target_nbits <= 0:
             raise ValueError("target_nbits must be positive")
+        if not tdi_values:
+            return []
         if self.current_device is None:
             raise RuntimeError("Target TAP is not selected")
         idx = self.current_device
@@ -79,34 +86,41 @@ class JtagChain:
         # Общая длина DR — сумма по всем: для BYPASS = 1, для target = target_nbits
         total_dr_bits = (len(self.devices) - 1) * 1 + target_nbits
 
-        # Собираем TDI-биты от ближайшего к TDO устройства к ближайшему к TDI.
-        # Для нецелевых — 0 (или как нужно), для целевого — tdi_val (LSB-first)
-        tdi_bits: List[int] = []
-        for i in reversed(range(len(self.devices))):
-            if i == idx:
-                tdi_bits += self._int_to_bits_lsb(tdi_val & ((1 << target_nbits) - 1), target_nbits)
-            else:
-                tdi_bits += [0]  # DR BYPASS = 1 бит, кладём 0 (обычно без разницы)
+        tms: List[int] = []
+        tdi: List[int] = []
+        for tdi_val in tdi_values:
+            # Собираем TDI-биты от ближайшего к TDO устройства к ближайшему к TDI.
+            # Для нецелевых — 0 (или как нужно), для целевого — tdi_val (LSB-first)
+            tdi_bits: List[int] = []
+            for i in reversed(range(len(self.devices))):
+                if i == idx:
+                    tdi_bits += self._int_to_bits_lsb(tdi_val & ((1 << target_nbits) - 1), target_nbits)
+                else:
+                    tdi_bits += [0]  # DR BYPASS = 1 бит, кладём 0 (обычно без разницы)
 
-        # Сдвигаем DR всю цепочку (последний бит — TMS=1 для Exit1-DR)
-        self.jtag.goto_shift_dr()
-        tms = [0] * (total_dr_bits - 1) + [1]
-        tdo_bytes = self.jtag.xc.shift(tms, tdi_bits, total_dr_bits)
-        self.jtag.xc.shift([1, 0], [0, 0], 2)  # Exit1-DR -> Update-DR -> Idle
+            # RTI -> Shift-DR, data shift, Exit1-DR -> Update-DR -> Idle.
+            tms += [1, 0, 0] + [0] * (total_dr_bits - 1) + [1] + [1, 0]
+            tdi += [0, 0, 0] + tdi_bits + [0, 0]
+        tdo_bytes = self.jtag.xc.shift(tms, tdi, len(tms))
 
         # Первыми из TDO выходят данные ближайшего к TDO устройства.
         # Каждый нецелевой TAP после целевого в devices даёт один BYPASS-бит.
-        offset = len(self.devices) - idx - 1
-        # Собираем target_nbits из tdo_bytes, начиная с offset
-        val = 0
-        for k in range(target_nbits):
-            # позиция k+offset
-            pos = offset + k
-            byte = tdo_bytes[pos >> 3]
-            bit = (byte >> (pos & 7)) & 1
-            val |= bit << k
-        logging.debug(f"DR_SCAN: 0x{val:09X}")
-        return val
+        frame_width = total_dr_bits + 5
+        target_offset = 3 + len(self.devices) - idx - 1
+        values: List[int] = []
+        for scan_index in range(len(tdi_values)):
+            offset = scan_index * frame_width + target_offset
+            # Собираем target_nbits из tdo_bytes, начиная с offset
+            val = 0
+            for k in range(target_nbits):
+                # позиция k+offset
+                pos = offset + k
+                byte = tdo_bytes[pos >> 3]
+                bit = (byte >> (pos & 7)) & 1
+                val |= bit << k
+            logging.debug(f"DR_SCAN: 0x{val:09X}")
+            values.append(val)
+        return values
 
     # ---------- УТИЛИТЫ ----------
     def index_of(self, name: str) -> int:

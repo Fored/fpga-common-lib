@@ -52,9 +52,24 @@ class JtagStreamHalfDuplex:
         tdo = self.j.dr_scan(word, self.SCAN_WIDTH)
         self._handle_tdo(tdo)
 
-    def send_words(self, data_list, start_flag=True):
-        for i, w in enumerate(data_list):
-            self.send_word(w, message_start=(start_flag and i == 0))
+    def send_words(self, data_list, start_flag=True, message_starts=None):
+        words = list(data_list)
+        if not words:
+            return
+        if message_starts is None:
+            starts = [(start_flag and i == 0) for i in range(len(words))]
+        else:
+            starts = list(message_starts)
+            if len(starts) != len(words):
+                raise ValueError("message_starts length must match data_list length")
+
+        encoded = [
+            self._encode_frame(w, valid=True, message_start=starts[i])
+            for i, w in enumerate(words)
+        ]
+        logging.info("BSCAN send_words: %d stream words in one XVC batch", len(encoded))
+        for tdo in self.j.dr_scan_many(encoded, self.SCAN_WIDTH):
+            self._handle_tdo(tdo)
 
     # ---------- приём ----------
     def recv_available(self):

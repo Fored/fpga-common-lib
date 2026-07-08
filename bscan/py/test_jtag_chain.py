@@ -27,9 +27,6 @@ class FakeJtag:
     def goto_shift_ir(self):
         pass
 
-    def goto_shift_dr(self):
-        pass
-
 
 class JtagChainTest(unittest.TestCase):
     def setUp(self):
@@ -71,13 +68,13 @@ class JtagChainTest(unittest.TestCase):
     def test_dr_uses_impact_order_for_target_and_result(self):
         self.chain.set_ir_target("TDI_DEVICE", 0b01)
         self.jtag.xc.calls.clear()
-        self.jtag.xc.next_tdo = bits_to_bytes([0, 0, 1, 0, 1])
+        self.jtag.xc.next_tdo = bits_to_bytes([0, 0, 0, 0, 0, 1, 0, 1, 0, 0])
 
         result = self.chain.dr_scan(0b011, 3)
 
         _, tdi, nbits = self.jtag.xc.calls[0]
-        self.assertEqual(nbits, 5)
-        self.assertEqual(tdi, [0, 0, 1, 1, 0])
+        self.assertEqual(nbits, 10)
+        self.assertEqual(tdi, [0, 0, 0, 0, 0, 1, 1, 0, 0, 0])
         self.assertEqual(result, 0b101)
 
 

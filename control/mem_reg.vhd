@@ -30,6 +30,7 @@ entity m_mem_reg is
     MemOut : out   mem_port;
 
     RegArray        : out   std_matrix32     (G_RANGE - 1 downto 0);
+    RegArrayValid   : out   std_logic_vector(G_RANGE - 1 downto 0);
     RegArrayIn      : in    std_matrix32     (G_RANGE - 1 downto 0) := (others => (others => '0'));
     RegArrayInValid : in    std_logic_vector(G_RANGE - 1 downto 0)  := (others => '0')
   );
@@ -38,11 +39,13 @@ end entity m_mem_reg;
 architecture arch of m_mem_reg is
 
   constant c_addr_high : integer := h1(G_RANGE - 1);
-  signal   settings    : std_matrix32(G_RANGE - 1 downto 0);
+  signal   settings       : std_matrix32(G_RANGE - 1 downto 0);
+  signal   settings_valid : std_logic_vector(G_RANGE - 1 downto 0) := (others => '0');
 
 begin
 
   RegArray        <= settings;
+  RegArrayValid   <= settings_valid;
   MemOut.read_req <= '1';
 
   read_proc: process (Clk) is
@@ -62,7 +65,8 @@ begin
   end process;
 
   gen_read_only: if G_READ_ONLY generate
-    settings <= RegArrayIn;
+    settings       <= RegArrayIn;
+    settings_valid <= (others => '0');
   end generate gen_read_only;
 
   gen_not_read_only: if not G_READ_ONLY generate
@@ -71,10 +75,13 @@ begin
     begin
       if rising_edge(Clk) then
         if (Reset = '1') then
-          settings <= G_REG_ARRAY_DEFAULT;
+          settings       <= G_REG_ARRAY_DEFAULT;
+          settings_valid <= (others => '0');
         else
+          settings_valid <= (others => '0');
           if (unsigned(MemIn.addr(c_addr_high downto 0)) < G_RANGE and MemIn.data_valid = '1') then
             settings(to_integer(unsigned(MemIn.addr(c_addr_high downto 0)))) <= MemIn.data;
+            settings_valid(to_integer(unsigned(MemIn.addr(c_addr_high downto 0)))) <= '1';
           elsif (unsigned(RegArrayInValid) > 0) then
             for i in G_RANGE - 1 downto 0 loop
               if (RegArrayInValid(i) = '1') then

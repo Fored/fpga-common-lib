@@ -1,0 +1,85 @@
+rule :
+  length_001 :
+     length : 150
+  length_002 :
+     length : 1000
+  instantiation_034:
+     disable: True
+  instantiation_036:
+    action: 'remove'
+  port_010:
+    disable: True
+  port_012:
+    disable: True
+  port_017:
+    disable: True
+  port_map_002:
+    disable: True
+  generic_007:
+    case: 'upper'
+  generic_009:
+    disable: True
+  generic_map_002:
+    case: 'upper'
+  type_500:
+    case: 'upper'
+  process_016:
+    disable: True
+  process_018:
+    disable: True
+  process_024:
+    number_of_spaces: 0
+  generate_002:
+    number_of_spaces: 0
+  instantiation_003:
+    number_of_spaces: 0
+  process_022:
+    style : no_blank_line
+  process_023:
+    style : no_blank_line
+  loop_statement_200:
+    disable: True
+  loop_statement_201:
+    style : no_blank_line
+  loop_statement_202:
+    style : no_blank_line
+  loop_statement_203:
+    style : no_blank_line
+  case_007:
+    style : no_blank_line
+  case_009:
+    style : no_blank_line
+  case_010:
+    style : no_blank_line
+  case_200:
+    style : no_blank_line
+  case_201:
+    style : no_blank_line
+  if_030:
+    disable: True
+  if_031:
+    style : no_blank_line
+  type_010:
+    disable: True
+  type_011:
+    disable: True
+  function_006:
+    disable: True
+  function_019:
+    disable: True
+  subprogram_body_201:
+    style : no_blank_line
+  subprogram_body_202:
+    style : no_blank_line
+  subprogram_body_203:
+    style : no_blank_line
+  subprogram_body_204:
+    style : no_blank_line
+  subtype_201:
+    disable: True
+  subtype_202:
+    disable: True
+  pragma_403:
+    style : no_blank_line
+  signal_007:
+    disable: True 

@@ -6,7 +6,7 @@ use IEEE.NUMERIC_STD.ALL;
 --set_false_path -to [get_pins -hier -filter name=~*Inst_m_clk_cross*/*data_reg*/D]
 --quartus
 --set_false_path -to [get_registers {*Inst_m_clk_cross*|data_reg*}]
-entity m_clk_cross is
+entity clk_cross is
 	Generic
 	(
 		G_WIDTH					: positive := 32;
@@ -17,14 +17,14 @@ entity m_clk_cross is
 	);
 	Port 
 	(
-		ClkIn		: in  std_logic := '0';
-		ClkOut	: in  std_logic;
-		DIn		: in  std_logic_vector(G_WIDTH - 1 downto 0);
-		DOut		: out std_logic_vector(G_WIDTH - 1 downto 0)
+		clk_in		: in  std_logic := '0';
+		clk_out	: in  std_logic;
+		d_in		: in  std_logic_vector(G_WIDTH - 1 downto 0);
+		d_out		: out std_logic_vector(G_WIDTH - 1 downto 0)
 	);
-end m_clk_cross;
+end clk_cross;
 
-architecture Behavioral of m_clk_cross is
+architecture Behavioral of clk_cross is
 	type std_matrix2 is array (natural range <>) of std_logic_vector(1 downto 0);
 
 	signal data_in, data_reg			: std_logic_vector(G_WIDTH - 1 downto 0) := (others => '0');
@@ -38,11 +38,11 @@ architecture Behavioral of m_clk_cross is
 begin
 
 	Gen_pulse_true: if G_PULSE_SYNC generate 			--синхронизация импульса
-		process(ClkIn)
+		process(clk_in)
 		begin
-			if rising_edge(ClkIn) then
+			if rising_edge(clk_in) then
 				for i in G_WIDTH - 1 downto 0 loop
-					if DIn(i) = '1' and unsigned(pulse_period_cnt(i)) = 0 then
+					if d_in(i) = '1' and unsigned(pulse_period_cnt(i)) = 0 then
 						data_in(i) <= not data_in(i);
 					else
 						data_in(i) <= data_in(i);
@@ -50,11 +50,11 @@ begin
 				end loop;
 			end if;
 		end process;
-		process(ClkIn)
+		process(clk_in)
 		begin
-			if rising_edge(ClkIn) then
+			if rising_edge(clk_in) then
 				for i in G_WIDTH - 1 downto 0 loop
-					if DIn(i) = '1' and unsigned(pulse_period_cnt(i)) = 0 then
+					if d_in(i) = '1' and unsigned(pulse_period_cnt(i)) = 0 then
 						pulse_period_cnt(i) <= G_PULSE_MIN_PERIOD;
 					else
 						if unsigned(pulse_period_cnt(i)) > 0 then
@@ -66,47 +66,47 @@ begin
 				end loop;
 			end if;
 		end process;
-		process(ClkOut)
+		process(clk_out)
 		begin
-			if rising_edge(ClkOut) then
+			if rising_edge(clk_out) then
 				data_reg <= data_in; --set_false_path
 				data_reg_2 <= data_reg;
 				data_reg_3 <= data_reg_2;
 			end if;
 		end process;
-		DOut <= data_reg_2 xor data_reg_3;
+		d_out <= data_reg_2 xor data_reg_3;
 	end generate;
 	
 	Gen_pulse_false: if not G_PULSE_SYNC generate 											--синхронизация регистра
 		Gen_din_reg: if G_DIN_REG_EN generate
-			process(ClkIn)
+			process(clk_in)
 			begin
-				if rising_edge(ClkIn) then
-					data_in <= DIn;
+				if rising_edge(clk_in) then
+					data_in <= d_in;
 				end if;
 			end process;
 		end generate;
 		Gen_din_wire: if not G_DIN_REG_EN generate
-			data_in <= DIn;
+			data_in <= d_in;
 		end generate;
 		
-		process(ClkOut)
+		process(clk_out)
 		begin
-			if rising_edge(ClkOut) then
+			if rising_edge(clk_out) then
 				data_reg <= data_in; --set_false_path
 			end if;
 		end process;
 		
 		Gen_dout_reg: if G_DOUT_REG_EN generate
-			process(ClkOut)
+			process(clk_out)
 			begin
-				if rising_edge(ClkOut) then
-					DOut <= data_reg;
+				if rising_edge(clk_out) then
+					d_out <= data_reg;
 				end if;
 			end process;
 		end generate;
 		Gen_dout_wire: if not G_DOUT_REG_EN generate
-			DOut <= data_reg;
+			d_out <= data_reg;
 		end generate;
 	end generate;
 

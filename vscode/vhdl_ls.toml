@@ -1,0 +1,11 @@
+standard = "2008"
+[libraries]
+workLib.files = [
+    './**/*.vhd'
+]
+# Libraries can be marked as third-party to disable some analysis warnings, such as unused declarations
+UNISIM.files = [
+    '/opt/Xilinx/2025.1/data/vhdl/src/unisims/unisim_VCOMP.vhd',
+    '/opt/Xilinx/2025.1/data/vhdl/src/unisims/unisim_VPKG.vhd'
+]
+UNISIM.is_third_party = true

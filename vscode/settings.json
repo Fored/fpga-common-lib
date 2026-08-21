@@ -1,0 +1,14 @@
+  "[vhdl]": {
+          "files.encoding": "utf8"
+  },
+  "emeraldwalk.runonsave": {
+      "commands": [
+        {
+          "match": "\\.vhd$|\\.vhdl$",
+          "cmd": "echo '${file}' | xargs -I {} vsg -f \"{}\" --fix --configuration=.vhdl-style.yaml"
+        }
+      ]
+  }
+  "verilog.linting.linter": "verilator",
+  "verilog.linting.verilator.arguments": "-I<Path to Vivado>/data/verilog/src/xeclib -F ./.verilator_args",
+  "verilog.ctags.path": "/usr/bin/ctags"

@@ -1,4 +1,8 @@
 **/ip/**
 !**/ip/**/
 !**/ip/**/*.xco
-__pycache__
+__pycache__/
+sim/modelsim.ini
+sim/results.xml
+sim/sim_build/
+sim/transcript

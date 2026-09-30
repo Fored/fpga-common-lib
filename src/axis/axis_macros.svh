@@ -75,6 +75,13 @@
   (* mark_debug = "true" *) wire [(width)-1:0] sig``_tdata_dbg = sig.tdata; \
   (* mark_debug = "true" *) wire sig``_tlast_dbg = sig.tlast
 
+`define MARK_DEBUG_AXIS_USER_IF(sig, data_width = 32, user_width = 16) \
+  (* mark_debug = "true" *) wire sig``_tvalid_dbg = sig.tvalid; \
+  (* mark_debug = "true" *) wire sig``_tready_dbg = sig.tready; \
+  (* mark_debug = "true" *) wire [(data_width)-1:0] sig``_tdata_dbg = sig.tdata; \
+  (* mark_debug = "true" *) wire sig``_tlast_dbg = sig.tlast; \
+  (* mark_debug = "true" *) wire [(user_width)-1:0] sig``_tuser_dbg = sig.tuser
+
 `define MARK_DEBUG_AXIS_COMPLEX_IF(sig) \
   (* mark_debug = "true" *) wire sig``_tvalid_dbg = sig.tvalid; \
   (* mark_debug = "true" *) wire sig``_tready_dbg = sig.tready; \

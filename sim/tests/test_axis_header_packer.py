@@ -17,6 +17,7 @@ async def test_header_is_prepended_to_payload(dut):
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
     set_axis_idle(dut.s_axis, dut.m_axis)
     dut.header.value = 0x11223344
+    dut.s_axis.tuser.value = 11
     await reset_dut(dut)
 
     payload = b"payload"
@@ -34,6 +35,7 @@ async def test_header_is_prepended_to_payload(dut):
     received = bytes(await recv_task)
 
     assert received == bytes([0x11, 0x22, 0x33, 0x44]) + payload
+    assert int(dut.m_axis.tuser.value) == 11
 
 
 @cocotb.test()
@@ -110,6 +112,7 @@ async def test_empty_packet_contains_only_header(dut):
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
     set_axis_idle(dut.s_axis, dut.m_axis)
     dut.header.value = 0x00000000
+    dut.s_axis.tuser.value = 4
     await reset_dut(dut)
 
     recv_task = cocotb.start_soon(
@@ -126,3 +129,4 @@ async def test_empty_packet_contains_only_header(dut):
     received = await recv_task
 
     assert received == [(0, 0), (0, 0), (0, 0), (0, 1)]
+    assert int(dut.m_axis.tuser.value) == 4

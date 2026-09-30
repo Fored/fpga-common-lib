@@ -1,19 +1,19 @@
 module axis_header_packer #(
     parameter int DATA_WIDTH   = 8,
-    parameter int HEADER_WORDS = 1
+    parameter int HEADER_WORDS = 1,
+    parameter int USER_WIDTH   = 16
 ) (
     input logic clk,
     input logic rst,
 
-    axis_if.slave  s_axis,
-    axis_if.master m_axis,
+    axis_user_if.slave  s_axis,
+    axis_user_if.master m_axis,
 
     input logic [HEADER_WORDS*DATA_WIDTH-1:0] header
 );
 
   localparam int HEADER_INDEX_WIDTH = (HEADER_WORDS <= 1) ? 1 : $clog2(HEADER_WORDS);
-  localparam logic [HEADER_INDEX_WIDTH-1:0] LAST_HEADER_INDEX =
-      HEADER_INDEX_WIDTH'(HEADER_WORDS - 1);
+  localparam logic [HEADER_INDEX_WIDTH-1:0] LAST_HEADER_INDEX = HEADER_INDEX_WIDTH'(HEADER_WORDS - 1);
 
   typedef enum logic [1:0] {
     ST_WAIT_PAYLOAD,
@@ -24,6 +24,7 @@ module axis_header_packer #(
   state_t state;
   logic [HEADER_INDEX_WIDTH-1:0] header_index;
   logic [HEADER_WORDS*DATA_WIDTH-1:0] header_reg;
+  logic [USER_WIDTH-1:0] user_reg;
   logic header_only;
 
   wire output_fire = m_axis.tvalid && m_axis.tready;
@@ -34,25 +35,27 @@ module axis_header_packer #(
                          (state == ST_HEADER && header_only && last_header_word) ?
                          m_axis.tready : 1'b0;
 
-  assign m_axis.tvalid = (state == ST_HEADER) ? 1'b1 :
-                         (state == ST_PAYLOAD) ? s_axis.tvalid : 1'b0;
+  assign m_axis.tvalid = (state == ST_HEADER) ? 1'b1 : (state == ST_PAYLOAD) ? s_axis.tvalid : 1'b0;
   assign m_axis.tdata = (state == ST_HEADER) ?
       header_reg[HEADER_WORDS*DATA_WIDTH-1-header_index*DATA_WIDTH-:DATA_WIDTH] :
       s_axis.tdata;
   assign m_axis.tlast = (state == ST_HEADER && header_only && last_header_word) ||
                         (state == ST_PAYLOAD && s_axis.tlast);
+  assign m_axis.tuser = user_reg;
 
   always_ff @(posedge clk) begin
     if (rst) begin
       state <= ST_WAIT_PAYLOAD;
       header_index <= '0;
       header_reg <= '0;
+      user_reg <= '0;
       header_only <= 1'b0;
     end else begin
       unique case (state)
         ST_WAIT_PAYLOAD: begin
           if (s_axis.tvalid) begin
             header_reg <= header;
+            user_reg <= s_axis.tuser;
             header_only <= header == '0;
             header_index <= '0;
             state <= ST_HEADER;

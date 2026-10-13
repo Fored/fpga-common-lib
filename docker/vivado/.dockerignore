@@ -1,0 +1,5 @@
+*
+!Dockerfile
+!.dockerignore
+!install_config.txt
+!*.lic

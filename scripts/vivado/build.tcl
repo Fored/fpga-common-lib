@@ -7,6 +7,12 @@ if {[catch {
     open_project $project_file
     # Сбрасываем результаты проекта, включая отдельные runs IP.
     reset_project
+    # В чистом checkout сначала создаём продукты IP и runs их вложенных ядер.
+    set ips [get_ips -quiet]
+    if {[llength $ips]} {
+        generate_target all $ips
+        foreach ip $ips { create_ip_run $ip }
+    }
     update_compile_order -fileset sources_1
     launch_runs synth_1 -jobs 4
     wait_on_run synth_1
